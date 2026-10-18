@@ -18,6 +18,32 @@ Thank you,
 Jacques Gagnon
 ```
 
+## About this fork: QRD Spark N5 pairing fix
+
+This fork of the archived [darthcloud/BlueRetro](https://github.com/darthcloud/BlueRetro) adds a fix that lets the **QRD Spark N5** wireless controller (PS4/PS3/PC/iOS/Android/TV/Steam) pair with BlueRetro. The same fix should also apply to other QRD pads with the same behaviour, such as the QRD Maestro S3 ([darthcloud/BlueRetro#1287](https://github.com/darthcloud/BlueRetro/issues/1287)).
+
+### The problem
+
+In PS4 / DInput mode the controller fully impersonates a DualShock 4: it uses the name `Wireless Controller`, VID/PID `054C:09CC` and the stock DS4 HID descriptor. Pairing appears to succeed, because the BlueRetro LED stops blinking, but the controller LED keeps blinking and it never connects.
+
+BlueRetro treats the pad as a PS4 controller and never encrypts the Bluetooth link for that controller type. A genuine DS4 accepts that. The QRD pad does not: it refuses the HID control channel with L2CAP result `0x0003` ("security block"). BlueRetro ignored that refusal, so the link sat idle until it timed out.
+
+### The fix
+
+When the HID control channel is refused with a security block on an unencrypted link, BlueRetro now enables link encryption and retries the HID connection once encryption is active. Controllers that already worked never hit this path, so their behaviour is unchanged.
+
+Changed files: `main/bluetooth/l2cap.c`, `main/bluetooth/hci.c`, `main/bluetooth/hci.h` and `main/bluetooth/host.h`.
+
+### How to use it with the QRD Spark N5
+
+1. Build the firmware for your system (see [BlueRetroRoot](https://github.com/darthcloud/BlueRetroRoot)), for example `cp configs/hw1/playstation sdkconfig` followed by `idf.py build`, and flash it over USB or via [OTA](https://blueretro.io/ota.html).
+2. Make sure BlueRetro is in pairing mode (LED pulsing).
+3. Hold **Home + Share** on the Spark N5 to pair it in PS4 / DInput mode.
+
+Tested on a DIY HW1 BlueRetro (`hw1/playstation`) with a PlayStation 2: pairing, all buttons and both analog sticks work.
+
+Known limitation: automatic reconnection by pressing only the Home button does not work yet. Hold Home + Share to pair again each session.
+
 # BlueRetro
 
 <p align="center"><img src="/static/PNGs/BRE_Logo_Color_Outline.png" width="600"/></p>
