@@ -1,3 +1,54 @@
+# BlueRetro fork with QRD Spark N5 support
+
+## Why this fork exists
+
+The original [darthcloud/BlueRetro](https://github.com/darthcloud/BlueRetro) project was archived by its author in December 2025 (see the farewell note below). It no longer accepts pull requests, issues or bug fixes, so fixes can only live in community forks.
+
+I own a **QRD Spark N5** wireless controller (PS4/PS3/PC/iOS/Android/TV/Steam). With the official firmware it could not be used with BlueRetro at all, and the problem could not be reported or fixed upstream. This fork exists to:
+
+- fix QRD Spark N5 pairing in BlueRetro (the fix also targets other QRD pads with the same behaviour, such as the QRD Maestro S3 reported in [darthcloud/BlueRetro#1287](https://github.com/darthcloud/BlueRetro/issues/1287));
+- publish ready-to-flash firmware builds with the fix, so other owners of these controllers don't need to set up a build environment.
+
+Everything else is identical to the latest upstream code (`v25.10-beta-4`, commit `e1a9831`).
+
+## The problem
+
+In PS4 / DInput mode the QRD Spark N5 fully impersonates a DualShock 4: it uses the name `Wireless Controller`, VID/PID `054C:09CC` and the stock DS4 HID descriptor. With the official firmware pairing *appears* to succeed, because the BlueRetro LED stops blinking, but the controller LED keeps blinking and it never connects. After about 40 seconds the link drops.
+
+BlueRetro treats the pad as a PS4 controller and never encrypts the Bluetooth link for that controller type. A genuine DS4 accepts that. The QRD pad does not: it refuses the HID control channel with L2CAP result `0x0003` ("security block"). BlueRetro ignored that refusal, so the link sat idle until it timed out.
+
+## The fix
+
+When the HID control channel is refused with a security block on an unencrypted link, BlueRetro now enables link encryption and retries the HID connection once encryption is active. Controllers that already worked never hit this path, so their behaviour is unchanged.
+
+Changed files: `main/bluetooth/l2cap.c`, `main/bluetooth/hci.c`, `main/bluetooth/hci.h` and `main/bluetooth/host.h`. See [pull request #1](https://github.com/tassiolucas/BlueRetro/pull/1) for the full analysis, including HCI traces.
+
+## Download and flash
+
+1. Download the latest firmware from the [Releases page](https://github.com/tassiolucas/BlueRetro/releases/latest). Pick the `hw1` or `hw2` zip that matches your adapter; if you are not sure, it is almost certainly `hw1`.
+2. Inside the zip, pick the `BlueRetro_<hw>_<system>.bin` for your console (for example `BlueRetro_hw1_playstation.bin` for PS1/PS2), or `BlueRetro_<hw>_universal.bin` for auto-detection.
+3. Flash it:
+   - **OTA (no cable):** open [blueretro.io/ota.html](https://blueretro.io/ota.html) in Chrome on a PC, connect to your BlueRetro (with no controller connected), select the `.bin`, click **Update Firmware** and wait for 100% (about 5 minutes).
+   - **USB:** follow the [official flashing guide](https://github.com/darthcloud/BlueRetro/wiki#8---updating-firmware).
+
+## Pairing the QRD Spark N5
+
+1. Make sure BlueRetro is in pairing mode (LED pulsing).
+2. Hold **Home + Share** on the Spark N5 to pair it in PS4 / DInput mode.
+3. The controller LED stops blinking once it is connected.
+
+Tested on a DIY HW1 BlueRetro (`hw1/playstation`) with a PlayStation 2: pairing, all buttons and both analog sticks work.
+
+**Known limitation:** automatic reconnection by pressing only the Home button does not work yet. Hold Home + Share to pair again each session.
+
+## Building from source
+
+Follow the [BlueRetroRoot](https://github.com/darthcloud/BlueRetroRoot) instructions, but use this fork's code in the `BlueRetro` folder, for example `cp configs/hw1/playstation sdkconfig` followed by `idf.py build`.
+
+---
+
+## Original upstream notice
+
 **This repository has been archived and is no longer under active development or maintenance.**
 
 ```
